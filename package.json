@@ -1,0 +1,35 @@
+{
+  "name": "homebridge-innova",
+  "version": "0.1.0",
+  "description": "A Homebridge plugin for the Innova air co",
+  "author": {
+    "name": "Lawrence Bensaid",
+    "email": "lawrencebensaid@icloud.com"
+  },
+  "homepage": "https://github.com/lawrencebensaid/homebridge-innova#readme",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/lawrencebensaid/homebridge-innova.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lawrencebensaid/homebridge-innova/issues"
+  },
+  "engines": {
+    "homebridge": ">=0.2.0",
+    "node": ">=6.0.0"
+  },
+  "main": "index.js",
+  "keywords": [
+    "homebridge-plugin",
+    "innova",
+    "temperature",
+    "air conditioning",
+    "air co",
+    "cooler"
+  ],
+  "bundledDependencies": false,
+  "dependencies": {
+    "request": "^2.88.2",
+    "request-promise-native": "^1.0.9"
+  }
+}
