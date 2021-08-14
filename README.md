@@ -2,6 +2,7 @@
 
 A Homebridge plugin for the Innova 2.0 air conditioning unit.
 
+<img src="https://user-images.githubusercontent.com/43364935/129443000-0c7f44b5-1c6a-4242-9e31-1577433679ca.jpeg" height="400">
 
 ## Pre-requisites
 
