@@ -1,0 +1,31 @@
+{
+    "pluginAlias": "InnovaAirCo",
+    "pluginType": "accessory",
+    "singular": false,
+    "headerDisplay": "A Homebridge plugin for the Innova 2.0 air conditioning unit.",
+    "footerDisplay": "This plugin is provided by [@lawrencebensaid](https://github.com/lawrencebensaid).",
+    "schema": {
+        "type": "object",
+        "required": [
+            "host"
+        ],
+        "properties": {
+            "host": {
+                "title": "IP address (or hostname)",
+                "type": "string",
+                "placeholder": "192.168.0.7"
+            },
+            "name": {
+                "title": "Accessory name",
+                "type": "string",
+                "placeholder": "Air conditioning"
+            },
+            "fan": {
+                "title": "Add fan control",
+                "type": "boolean"
+            }
+        }
+    },
+    "form": null,
+    "display": null
+}
