@@ -1,7 +1,8 @@
 {
   "name": "homebridge-innova",
-  "version": "0.1.0",
-  "description": "A Homebridge plugin for the Innova air co",
+  "displayName": "InnovaAirCo",
+  "version": "0.1.2",
+  "description": "A Homebridge plugin for the Innova airco",
   "author": {
     "name": "Lawrence Bensaid",
     "email": "lawrencebensaid@icloud.com"
