@@ -1,18 +1,20 @@
 'use strict';
 
 const http = require("request-promise-native")
+const { networkInterfaces } = require("os");
 
-let Service, Characteristic;
+let Service, Characteristic, Formats, Perms, Units;
 let host, serial, firmwareVersion;
 let active = 0;
 let temperature = 0;
-let targetTemperature = 0;
+let targetTemperature = 10;
 let mode = "auto";
 let oscillate = 0;
 let fanOn = 0;
 let rotationSpeed = 0;
 let name = "Airco";
 let uid;
+let logger;
 
 
 /**
@@ -24,18 +26,13 @@ let uid;
 class InnovaAirCo {
 
   constructor(log, config) {
+    logger = log;
     this.log = log;
     this.name = config.name || this.name;
     this.host = config.host;
     this.fanControl = config.fan;
     host = config.host;
-
-    getStatus({ full: true }).then(res => {
-      uid = res.UID;
-      firmwareVersion = res.sw.V;
-      serial = res.setup.serial;
-      name = res.setup.name;
-    })
+    this.connect();
 
     this.info = new Service.AccessoryInformation()
       .setCharacteristic(Characteristic.Manufacturer, "Innova")
@@ -110,6 +107,28 @@ class InnovaAirCo {
 
   }
 
+  connect() {
+    const log = this.log;
+    (async () => {
+      try {
+        if (!host) {
+          log.info("Host is not set: Starting device discovery...");
+          const ips = await discover();
+          if (ips.length > 0) {
+            const ip = ips[0]
+            log.info(`Innova device found: ${ip}`);
+            host = ip;
+          }
+        }
+        const res = await getStatus({ full: true })
+        uid = res.UID;
+        firmwareVersion = res.sw.V;
+        serial = res.setup.serial;
+        name = res.setup.name;
+      } catch { }
+    })();
+  }
+
   async setOn(state, cb) {
     try {
       if (state && rotationSpeed == 0) {
@@ -130,6 +149,7 @@ class InnovaAirCo {
   }
 
   async setRotationSpeed(state, cb) {
+    this.log.info(`setRotationSpeed: ${state}`);
     try {
       const innovaScale = Math.ceil(state / 34);
       await sendCommand(`set/fan`, { value: innovaScale });
@@ -139,6 +159,7 @@ class InnovaAirCo {
   }
 
   async setActive(state, cb) {
+    this.log.info(`setActive: ${state}`);
     try {
       await sendCommand(`power/${state ? "on" : "off"}`);
       active = state;
@@ -147,7 +168,7 @@ class InnovaAirCo {
   }
 
   async setTargetHeaterCoolerState(state, cb) {
-    console.log("setTargetHeaterCoolerState", state);
+    this.log.info(`setTargetHeaterCoolerState: ${state}`);
     try {
       mode = homekitToInnovaMode(state);
       await sendCommand(`set/mode/${mode}`);
@@ -156,6 +177,7 @@ class InnovaAirCo {
   }
 
   async setSwingMode(state, cb) {
+    this.log.info(`setSwingMode: ${state}`);
     try {
       await sendCommand("set/feature/rotation", { value: state ? 0 : 1 });
       oscillate = state;
@@ -164,20 +186,22 @@ class InnovaAirCo {
   }
 
   async setCoolingThresholdTemperature(value, cb) {
-    console.log("setCoolingThresholdTemperature", value);
+    this.log.info(`setCoolingThresholdTemperature: ${value}`);
     try {
       await sendCommand("set/mode/cooling");
       await sendCommand("set/setpoint", { p_temp: value });
       targetTemperature = value;
-    } catch (error) { }
+    } catch { }
     cb(null, targetTemperature);
   }
 
   async setHeatingThresholdTemperature(value, cb) {
-    console.log("setHeatingThresholdTemperature", value);
-    await sendCommand("set/mode/heating");
-    await sendCommand("set/setpoint", { p_temp: value });
-    targetTemperature = value;
+    this.log.info(`setHeatingThresholdTemperature: ${value}`);
+    try {
+      await sendCommand("set/mode/heating");
+      await sendCommand("set/setpoint", { p_temp: value });
+      targetTemperature = value;
+    } catch { }
     cb(null, targetTemperature);
   }
 
@@ -234,6 +258,7 @@ module.exports = api => {
   Units = api.hap.Units;
 
   api.registerAccessory("InnovaAirCo", InnovaAirCo);
+  // api.registerPlatform('homebridge-innova', 'InnovaAirCo', InnovaAirCo, true);
 
 };
 
@@ -257,17 +282,74 @@ function innovaToHomekitMode(value) {
 function getStatus(options = {}) {
   const full = options.full === true;
   return new Promise(async (resolve, reject) => {
-    const response = await http(`http://${host}/api/v/1/status`, { json: {} });
-    if (response.success === true) resolve(full ? response : response.RESULT);
+    try {
+      const url = `http://${host}/api/v/1/status`
+      if (logger) {
+        logger.debug(url);
+      }
+      const response = await http(url, { json: {} });
+      if (response.success === true) return resolve(full ? response : response.RESULT);
+    } catch { }
     reject();
   });
 }
 
 function sendCommand(topic, params = {}) {
   return new Promise(async (resolve, reject) => {
-    const query = Object.keys(params).map(x => `${x}=${params[x]}`).join("&");
-    const response = await http.post(`http://${host}/api/v/1/${topic}?${query}`, { json: {} });
-    if (response.success === true) resolve(response);
+    try {
+      const query = Object.keys(params).map(x => `${x}=${params[x]}`).join("&");
+      const url = `http://${host}/api/v/1/${topic}?${query}`
+      if (logger) {
+        logger.debug(url);
+      }
+      const response = await http.post(url, { json: {} });
+      if (response.success === true) return resolve(response);
+    } catch { }
     reject();
   });
+}
+
+/**
+ * @description Finds the IP addresses of host.
+ * 
+ * @returns {string[]} An array of IP addresses
+ */
+function getOwnIPs() {
+  const nets = networkInterfaces();
+  const results = [];
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      const familyV4Value = typeof net.family === 'string' ? 'IPv4' : 4
+      if (net.family === familyV4Value && !net.internal) {
+        results.push(net.address);
+      }
+    }
+  }
+  return results
+}
+
+/**
+* @description Finds the IP addresses of all v1 compatible devices in the network
+* 
+* @returns {Promise<string[]>} A promise that resolves to an array of IP addresses
+*/
+async function discover() {
+  const networks = getOwnIPs().map(ip => { return ip.split(".").slice(0, -1).join("."); });
+  const promises = [];
+  for (const network of networks) {
+    for (let i = 0; i < 256; i++) {
+      const ip = `${network}.${i}`
+      promises.push(new Promise(async (resolve, reject) => {
+        try {
+          const response = await http(`http://${ip}/api/v/1/status`, { json: {}, timeout: 3000 });
+          if (response.success === true) {
+            return resolve(ip);
+          }
+        } catch { }
+        reject();
+      }));
+    }
+  }
+  const results = await Promise.allSettled(promises);
+  return results.filter(x => x.status == "fulfilled").map(x => x.value);
 }
