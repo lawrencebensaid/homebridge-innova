@@ -6,9 +6,7 @@
     "footerDisplay": "This plugin is provided by [@lawrencebensaid](https://github.com/lawrencebensaid).",
     "schema": {
         "type": "object",
-        "required": [
-            "host"
-        ],
+        "required": [],
         "properties": {
             "host": {
                 "title": "IP address (or hostname)",
